@@ -12,8 +12,8 @@ services:
     environment:
       - NODE_ENV=production
       - REDIS_URL=redis://redis:6379
-      # - AGENTCTRL_HERMES_URL=http://hermes-bridge:8080  # wire in when a real adapter ships
-      # - AGENTCTRL_PASSWORD=change-me  # enable the password gate (see .env.example)
+      # - AGENTCTRL_ADAPTER=redis          # flip to "redis" once real bridges (or the demo harnesses below) are publishing
+      # - AGENTCTRL_PASSWORD=change-me     # enable the password gate (see .env.example)
     depends_on:
       redis:
         condition: service_healthy
@@ -35,17 +35,60 @@ services:
     networks:
       - agentctrl-net
 
-  # Drop future agent harnesses in here as sibling services, e.g.:
-  # hermes-bridge:
-  #   build: ./harnesses/hermes-bridge
-  #   restart: unless-stopped
-  #   environment:
-  #     - REDIS_URL=redis://redis:6379
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #   networks:
-  #     - agentctrl-net
+  # --- Demo bridge harnesses -------------------------------------------------
+  # Reference implementations of harnesses/example-agent-harness. Off by
+  # default (profile "demo"). Start them alongside the dashboard with:
+  #   docker compose --profile demo up -d
+  # then set AGENTCTRL_ADAPTER=redis above and restart the agentctrl service
+  # to see the Overview/agent pages and /diagnostics reading real Redis data.
+  hermes-bridge:
+    build: ./harnesses/example-agent-harness
+    container_name: agentctrl-hermes-bridge
+    restart: unless-stopped
+    profiles: ["demo"]
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AGENT_ID=hermes
+      - AGENT_NAME=Hermes
+      - AGENT_TAGLINE=Messenger & orchestration agent
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentctrl-net
+
+  codex-bridge:
+    build: ./harnesses/example-agent-harness
+    container_name: agentctrl-codex-bridge
+    restart: unless-stopped
+    profiles: ["demo"]
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AGENT_ID=codex
+      - AGENT_NAME=Codex
+      - AGENT_TAGLINE=Autonomous coding agent
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentctrl-net
+
+  openclaw-bridge:
+    build: ./harnesses/example-agent-harness
+    container_name: agentctrl-openclaw-bridge
+    restart: unless-stopped
+    profiles: ["demo"]
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - AGENT_ID=openclaw
+      - AGENT_NAME=OpenClaw
+      - AGENT_TAGLINE=Task execution & tooling agent
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentctrl-net
+  # ---------------------------------------------------------------------------
 
 networks:
   agentctrl-net:

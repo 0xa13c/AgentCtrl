@@ -4,15 +4,21 @@ import { useState } from "react";
 import { Play, Square, RotateCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentId } from "@/types/agents";
-import { getAdapter } from "@/lib/agents/adapter";
 
 export function ControlPanel({ agentId }: { agentId: AgentId }) {
   const [pending, setPending] = useState<string | null>(null);
 
   async function run(command: "start" | "stop" | "restart") {
     setPending(command);
-    await getAdapter().sendCommand(agentId, command);
-    setPending(null);
+    try {
+      await fetch(`/api/agents/${agentId}/command`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command }),
+      });
+    } finally {
+      setPending(null);
+    }
   }
 
   const actions = [

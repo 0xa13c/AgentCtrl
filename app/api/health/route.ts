@@ -16,7 +16,7 @@ export async function GET() {
       env: process.env.NODE_ENV,
     },
     redis,
-    adapterMode: process.env.AGENTCTRL_HERMES_URL ? "live" : "mock",
+    adapterMode: process.env.AGENTCTRL_ADAPTER === "redis" ? "redis" : "mock",
     timestamp: new Date().toISOString(),
   });
 }

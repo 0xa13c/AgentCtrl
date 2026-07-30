@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Cpu, MemoryStick, ListChecks, Timer } from "lucide-react";
 import { AgentDetail, AgentId } from "@/types/agents";
-import { getAdapter } from "@/lib/agents/adapter";
 import { AgentHeader } from "@/components/hud/agent-header";
 import { StatTile } from "@/components/hud/stat-tile";
 import { HudPanel, PanelHeader } from "@/components/hud/panel";
@@ -30,8 +29,8 @@ export function AgentModuleView({ agentId, glow }: { agentId: AgentId; glow: "cy
 
   useEffect(() => {
     let active = true;
-    getAdapter()
-      .getAgent(agentId)
+    fetch(`/api/agents/${agentId}`)
+      .then((res) => res.json())
       .then((data) => {
         if (active) setAgent(data);
       });

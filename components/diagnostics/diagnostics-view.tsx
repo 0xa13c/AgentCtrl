@@ -12,7 +12,7 @@ interface HealthResponse {
   ok: boolean;
   server: { uptimeSeconds: number; nodeVersion: string; env: string };
   redis: { ok: boolean; latencyMs: number | null; error?: string };
-  adapterMode: "mock" | "live";
+  adapterMode: "mock" | "redis";
   timestamp: string;
 }
 
@@ -83,10 +83,10 @@ export function DiagnosticsView() {
             <StatTile label="Node Runtime" value={health.server.nodeVersion} sub={health.server.env} icon={Cpu} glow="violet" delay={0.1} />
             <StatTile
               label="Adapter Mode"
-              value={health.adapterMode === "live" ? "LIVE" : "MOCK"}
-              sub={health.adapterMode === "live" ? "Reading real agent endpoints" : "No live endpoints configured"}
+              value={health.adapterMode === "redis" ? "REDIS (LIVE)" : "MOCK"}
+              sub={health.adapterMode === "redis" ? "Reading harness-published data" : "Synthetic demo data"}
               icon={Radio}
-              glow={health.adapterMode === "live" ? "green" : "amber"}
+              glow={health.adapterMode === "redis" ? "green" : "amber"}
               delay={0.15}
             />
           </div>
@@ -104,12 +104,14 @@ export function DiagnosticsView() {
               <li className={cn("flex items-center gap-2", health.redis.ok ? "text-neon-green" : "text-neon-amber")}>
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
                 {health.redis.ok
-                  ? "Redis is reachable — the messaging bus is ready for a real bridge harness to publish agent events onto it."
+                  ? "Redis is reachable — run `docker compose --profile demo up -d` to start the example bridge harnesses and see real published data."
                   : "Redis isn't reachable from this container. If you're running via docker-compose, the redis service may still be starting — this should flip to CONNECTED within a few seconds."}
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                Adapter mode reads {"process.env.AGENTCTRL_HERMES_URL"} — set it (see .env.example) once a real bridge exists to flip this to LIVE.
+                Adapter mode reads <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">AGENTCTRL_ADAPTER</code>. Set it to{" "}
+                <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">redis</code> (see .env.example) once the demo harnesses — or
+                a real bridge — are publishing.
               </li>
             </ul>
           </HudPanel>

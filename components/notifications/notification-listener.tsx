@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { getAdapter } from "@/lib/agents/adapter";
 import { useSettings } from "@/lib/settings-context";
 import { FleetActivityEvent } from "@/types/agents";
 
@@ -22,11 +21,12 @@ export function NotificationListener() {
     let cancelled = false;
 
     async function poll() {
-      const events = await getAdapter().getFleetActivity(10);
+      const res = await fetch("/api/activity?limit=10");
+      const events: FleetActivityEvent[] = await res.json();
       if (cancelled) return;
 
       // On the very first poll, just remember what's already there — don't
-      // fire a wall of toasts for pre-existing mock history.
+      // fire a wall of toasts for pre-existing history.
       if (firstRun.current) {
         events.forEach((e) => seen.current.add(e.id));
         firstRun.current = false;

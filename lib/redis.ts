@@ -1,22 +1,22 @@
 import Redis from "ioredis";
 
 /**
- * Lazily-created Redis client for health checks and, later, the live
- * agent-event bus. Safe to import from server code (API routes) only —
- * never import this from a "use client" component.
+ * Lazily-created Redis client shared by health checks (pingRedis) and the
+ * live agent adapter (lib/agents/live.ts). Server-only — never import this
+ * from a "use client" component.
  */
 let client: Redis | null = null;
 
-function getClient(): Redis {
+export function getRedisClient(): Redis {
   if (!client) {
     client = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
       lazyConnect: true,
       connectTimeout: 1500,
       maxRetriesPerRequest: 1,
-      retryStrategy: () => null, // don't keep retrying in a health-check context
+      retryStrategy: (times) => Math.min(times * 200, 2000),
     });
     client.on("error", () => {
-      /* swallowed — surfaced via pingRedis()'s return value instead */
+      /* swallowed — surfaced via pingRedis()'s return value / caller try-catch instead */
     });
   }
   return client;
@@ -25,8 +25,8 @@ function getClient(): Redis {
 export async function pingRedis(): Promise<{ ok: boolean; latencyMs: number | null; error?: string }> {
   const started = Date.now();
   try {
-    const redis = getClient();
-    if (redis.status === "end" || redis.status === "close") {
+    const redis = getRedisClient();
+    if (redis.status === "end" || redis.status === "close" || redis.status === "wait") {
       await redis.connect();
     }
     await redis.ping();

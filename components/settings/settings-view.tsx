@@ -10,7 +10,7 @@ import { HudPanel, PanelHeader } from "@/components/hud/panel";
 import { AgentIcon } from "@/components/hud/agent-icon";
 import { NAV_AGENTS } from "@/lib/constants";
 import { useSettings } from "@/lib/settings-context";
-import { Radio, ShieldCheck, Bell, SlidersHorizontal, Info, Link2 } from "lucide-react";
+import { Radio, ShieldCheck, Bell, SlidersHorizontal, Info } from "lucide-react";
 
 function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -91,11 +91,28 @@ export function SettingsView() {
             <PanelHeader eyebrow="adapter layer" title="Agent Connections" />
             <p className="mb-4 max-w-2xl text-xs text-muted-foreground">
               Every module reads through a single <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">AgentAdapter</code>{" "}
-              interface. It's on the mock engine right now so the dashboard works with zero setup — point each row at a
-              real endpoint once its bridge harness exists, then flip <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">getAdapter()</code> in{" "}
-              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">lib/agents/adapter.ts</code>. Check{" "}
-              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">/diagnostics</code> for the real Redis connection status.
+              interface, fronted by server-only API routes. It's on the mock engine right now (
+              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-amber">AGENTCTRL_ADAPTER</code> unset). Two ways to go live:
             </p>
+            <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4">
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-neon-cyan">try it now</p>
+                <p className="text-sm font-semibold text-foreground">Demo bridge harnesses</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">docker compose --profile demo up -d</code>, then set{" "}
+                  <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">AGENTCTRL_ADAPTER=redis</code> and restart. See{" "}
+                  <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">harnesses/example-agent-harness</code>.
+                </p>
+              </div>
+              <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4">
+                <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-neon-violet">for production</p>
+                <p className="text-sm font-semibold text-foreground">Write a real bridge</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Copy the example harness, replace the simulated tick with real calls into your agent, keep the same
+                  Redis key shape — the dashboard needs zero changes.
+                </p>
+              </div>
+            </div>
             <div className="space-y-3">
               {NAV_AGENTS.map((agent) => (
                 <div key={agent.id} className="flex flex-col gap-3 rounded-xl border border-white/[0.06] bg-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -105,13 +122,14 @@ export function SettingsView() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">{agent.label}</p>
-                      <p className="font-mono text-[10px] uppercase tracking-wider text-neon-amber">mock adapter · not wired</p>
+                      <p className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                        redis key: <span className="text-neon-cyan">agentctrl:agent:{agent.id}:summary</span>
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    <Input placeholder={`AGENTCTRL_${agent.id.toUpperCase()}_URL`} className="w-56 border-white/10 bg-black/30 font-mono text-xs" disabled />
-                  </div>
+                  <span className="rounded-full border border-neon-amber/30 bg-neon-amber/10 px-3 py-1 font-mono text-[10px] uppercase tracking-wider text-neon-amber">
+                    mock · not wired
+                  </span>
                 </div>
               ))}
             </div>

@@ -8,32 +8,63 @@
                  └──────────────┬─────────────┘
                                 │ proxy_pass :3000
                  ┌──────────────▼─────────────┐
-                 │  agentctrl container        │  Next.js standalone server
-                 │  (this repo)                │
-                 └──────────────┬─────────────┘
-                                │ pub/sub, task queues
+                 │  agentctrl container        │  Next.js standalone server.
+                 │  (this repo)                │  API routes (/api/agents,
+                 │                              │  /api/activity) are the only
+                 └──────────────┬─────────────┘  thing that touches the adapter.
+                                │ reads/writes
                  ┌──────────────▼─────────────┐
-                 │  redis container            │  message bus for agent events
+                 │  redis container            │  message bus + latest-state store
                  └──────────────┬─────────────┘
-                                │
+                                │ published by
                  ┌──────────────▼─────────────┐
-                 │  future: hermes/codex/      │  one container/harness per
-                 │  openclaw bridge harnesses  │  agent, publishing to Redis
+                 │  hermes/codex/openclaw      │  harnesses/example-agent-harness
+                 │  bridge harnesses           │  (demo) or your real bridges
                  └────────────────────────────┘
 ```
 
-The dashboard ships with a **mock adapter** (`lib/agents/mock.ts`) so it's fully
-functional out of the box. When your real Hermes/Codex/OpenClaw processes are
-ready to report status, write a small "bridge harness" per agent that:
+The dashboard ships with a **mock adapter** (`lib/agents/mock.ts`) so it's
+fully functional out of the box — zero setup, zero Redis required. The
+adapter itself is server-only: client components fetch through
+`/api/agents`, `/api/agents/[id]`, `/api/agents/[id]/command`, and
+`/api/activity` rather than importing it directly, which keeps `ioredis`
+out of the browser bundle entirely.
 
-1. Talks to the agent however it already talks (CLI, socket, log tail, API).
-2. Publishes normalized JSON events to Redis channels (`agent:hermes:status`, etc).
-3. Implement `LiveAgentAdapter` in `lib/agents/adapter.ts` reading from Redis/REST,
-   and flip the `getAdapter()` export to use it. Zero UI changes required.
+## Try the live data pipeline (no real agents needed yet)
 
-Check `/diagnostics` in the running app any time — it pings the real Redis
-container over `ioredis` (not mock data) so you can confirm the messaging bus
-is actually reachable after you deploy.
+There's a working reference bridge harness at
+`harnesses/example-agent-harness` that publishes realistic status into
+Redis in the exact shape the live adapter (`lib/agents/live.ts`) reads.
+Use it to prove the whole pipeline before wiring up real agents:
+
+```bash
+docker compose up -d --build            # app + redis
+docker compose --profile demo up -d     # + three demo bridge harnesses
+```
+
+Then set `AGENTCTRL_ADAPTER=redis` (in `.env` or `docker-compose.yml`) and
+restart the app container:
+
+```bash
+docker compose up -d --build agentctrl
+```
+
+Visit `/diagnostics` — Redis should show CONNECTED and Adapter Mode should
+show REDIS (LIVE). The Overview and per-agent pages are now reading data
+published by the demo harnesses every few seconds instead of the mock
+engine. Flip `AGENTCTRL_ADAPTER` back off (or unset it) any time to go back
+to the synthetic demo.
+
+### Wiring a real agent later
+
+1. Copy `harnesses/example-agent-harness` as a starting point.
+2. Replace the simulated `tick()` with real calls into Hermes/Codex/OpenClaw
+   (CLI, socket, log tail, whatever it already exposes).
+3. Keep writing to the same Redis keys (`agentctrl:agent:<id>:summary`,
+   `:tasks`, `:logs`, `:throughput`, `:errorHistory`, and the shared
+   `agentctrl:activity` list) — the dashboard needs **zero code changes**.
+4. Add the harness as its own `docker-compose.yml` service (see the demo
+   ones for the pattern) and drop the corresponding demo bridge.
 
 ## Access model — pick based on who needs in
 
@@ -95,8 +126,9 @@ AGENTCTRL_PASSWORD=some-strong-passphrase
 Restart the container and every route redirects to `/login` until the
 correct password is entered; a signed session cookie (HMAC over the
 password, so nothing but a hash sits in the cookie) keeps you logged in for
-30 days. This is single-shared-password auth, not multi-user — swap in
-NextAuth/SSO if you ever need per-person accounts.
+30 days. `/api/health` and `/login` itself stay reachable so health checks
+and the login flow always work. This is single-shared-password auth, not
+multi-user — swap in NextAuth/SSO if you ever need per-person accounts.
 
 ## One-time server setup (Oracle Cloud VM)
 

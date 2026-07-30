@@ -5,7 +5,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Bot, ListTodo, AlertTriangle, Gauge, ArrowRight } from "lucide-react";
 import { AgentSummary, FleetActivityEvent } from "@/types/agents";
-import { getAdapter } from "@/lib/agents/adapter";
 import { StatTile } from "@/components/hud/stat-tile";
 import { HudPanel, PanelHeader } from "@/components/hud/panel";
 import { StatusBadge } from "@/components/hud/status-badge";
@@ -32,9 +31,12 @@ export function OverviewView() {
   const [activity, setActivity] = useState<FleetActivityEvent[] | null>(null);
 
   useEffect(() => {
-    const adapter = getAdapter();
-    adapter.listAgents().then(setAgents);
-    adapter.getFleetActivity(24).then(setActivity);
+    fetch("/api/agents")
+      .then((res) => res.json())
+      .then(setAgents);
+    fetch("/api/activity?limit=24")
+      .then((res) => res.json())
+      .then(setActivity);
   }, []);
 
   const totalActive = agents?.reduce((sum, a) => sum + a.activeTasks, 0) ?? 0;
