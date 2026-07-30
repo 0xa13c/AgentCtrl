@@ -29,6 +29,9 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "AgentCtrl // Mission Control",
   description: "Command and control deck for autonomous agents",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
