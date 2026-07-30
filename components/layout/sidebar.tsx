@@ -56,7 +56,7 @@ export function Sidebar() {
         ))}
 
         <p className="px-3 pb-2 pt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">system</p>
-        <SidebarLink href="#" icon={Activity} label="Diagnostics" active={false} />
+        <SidebarLink href="/diagnostics" icon={Activity} label="Diagnostics" active={pathname === "/diagnostics"} />
         <SidebarLink href="/settings" icon={Settings} label="Settings" active={pathname === "/settings"} />
       </nav>
 

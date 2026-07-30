@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import { Orbitron, JetBrains_Mono, Manrope } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { GridBackdrop } from "@/components/layout/grid-backdrop";
+import { SettingsProvider } from "@/lib/settings-context";
+import { NotificationListener } from "@/components/notifications/notification-listener";
 
 const display = Orbitron({
   subsets: ["latin"],
@@ -32,14 +35,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className={`${display.variable} ${mono.variable} ${body.variable} min-h-screen`}>
-        <GridBackdrop />
-        <div className="relative z-10 flex min-h-screen">
-          <Sidebar />
-          <div className="flex min-h-screen flex-1 flex-col">
-            <Topbar />
-            <main className="flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">{children}</main>
+        <SettingsProvider>
+          <GridBackdrop />
+          <div className="relative z-10 flex min-h-screen">
+            <Sidebar />
+            <div className="flex min-h-screen flex-1 flex-col">
+              <Topbar />
+              <main className="flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">{children}</main>
+            </div>
           </div>
-        </div>
+          <NotificationListener />
+          <Toaster
+            theme="dark"
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: "rgba(6,9,17,0.95)",
+                border: "1px solid rgba(0,240,255,0.2)",
+                color: "#e6f7fa",
+                fontFamily: "var(--font-body)",
+              },
+            }}
+          />
+        </SettingsProvider>
       </body>
     </html>
   );

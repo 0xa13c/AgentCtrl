@@ -31,6 +31,10 @@ ready to report status, write a small "bridge harness" per agent that:
 3. Implement `LiveAgentAdapter` in `lib/agents/adapter.ts` reading from Redis/REST,
    and flip the `getAdapter()` export to use it. Zero UI changes required.
 
+Check `/diagnostics` in the running app any time — it pings the real Redis
+container over `ioredis` (not mock data) so you can confirm the messaging bus
+is actually reachable after you deploy.
+
 ## Access model — pick based on who needs in
 
 This dashboard can restart real agents, so **don't expose it to the raw
@@ -67,10 +71,32 @@ cloudflared tunnel run --url http://localhost:3000 agentctrl
 Then lock it down in the Cloudflare Zero Trust dashboard: Access policy →
 allow only your email/identity.
 
+**Once you go this route, also turn on the built-in password gate** (see
+below) — Cloudflare Access protects the edge, but a second layer inside the
+app itself is cheap insurance.
+
 ### Option C — Nginx + public port
 Only reach for `deploy/nginx.conf` if you specifically want a plain public
 HTTPS endpoint with your own cert management (Certbot). It's included for
-completeness but isn't the recommended default for a control-plane app.
+completeness but isn't the recommended default for a control-plane app. If
+you do this, **turn on the password gate below** — don't leave a real agent
+control surface open on the public internet with no auth in front of it.
+
+## Optional password gate
+
+`middleware.ts` ships a lightweight session gate that's **off by default**
+(fine for Tailscale-only access). Turn it on by setting one env var:
+
+```bash
+# in .env (see .env.example) or docker-compose.yml
+AGENTCTRL_PASSWORD=some-strong-passphrase
+```
+
+Restart the container and every route redirects to `/login` until the
+correct password is entered; a signed session cookie (HMAC over the
+password, so nothing but a hash sits in the cookie) keeps you logged in for
+30 days. This is single-shared-password auth, not multi-user — swap in
+NextAuth/SSO if you ever need per-person accounts.
 
 ## One-time server setup (Oracle Cloud VM)
 

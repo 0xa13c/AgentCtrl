@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
+import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { HudPanel, PanelHeader } from "@/components/hud/panel";
 import { AgentIcon } from "@/components/hud/agent-icon";
 import { NAV_AGENTS } from "@/lib/constants";
+import { useSettings } from "@/lib/settings-context";
 import { Radio, ShieldCheck, Bell, SlidersHorizontal, Info, Link2 } from "lucide-react";
 
 function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -25,23 +25,20 @@ function Row({ label, description, children }: { label: string; description?: st
 }
 
 export function SettingsView() {
-  const [refreshInterval, setRefreshInterval] = useState("5");
-  const [dashboardName, setDashboardName] = useState("AgentCtrl");
-  const [notifyFailures, setNotifyFailures] = useState(true);
-  const [notifyDegraded, setNotifyDegraded] = useState(true);
-  const [notifyCompletion, setNotifyCompletion] = useState(false);
-  const [soundAlerts, setSoundAlerts] = useState(false);
+  const { settings, updateSettings } = useSettings();
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="space-y-6">
       <div>
         <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">configuration</p>
         <h1 className="font-display text-2xl font-black tracking-wide text-foreground">SETTINGS</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Control deck preferences, agent wiring, and access notes.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Control deck preferences, agent wiring, and access notes — persisted to this browser.
+        </p>
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="hud-panel h-auto w-full justify-start gap-1 bg-transparent p-1.5 sm:w-auto">
+        <TabsList className="hud-panel h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-1.5 sm:w-auto sm:flex-nowrap">
           <TabsTrigger value="general" className="gap-1.5 data-[state=active]:shadow-glow-cyan">
             <SlidersHorizontal className="h-3.5 w-3.5" /> General
           </TabsTrigger>
@@ -65,23 +62,25 @@ export function SettingsView() {
             <div className="max-w-lg divide-y divide-white/[0.06]">
               <Row label="Dashboard name" description="Shown in the sidebar and browser tab.">
                 <Input
-                  value={dashboardName}
-                  onChange={(e) => setDashboardName(e.target.value)}
+                  value={settings.dashboardName}
+                  onChange={(e) => updateSettings({ dashboardName: e.target.value })}
                   className="w-40 border-white/10 bg-black/30 text-right font-mono text-sm"
                 />
               </Row>
-              <Row label="Telemetry refresh interval" description="How often live tiles poll the adapter.">
+              <Row label="Telemetry refresh interval" description="How often live tiles and notifications poll the adapter.">
                 <div className="flex items-center gap-2">
                   <Input
-                    value={refreshInterval}
-                    onChange={(e) => setRefreshInterval(e.target.value)}
+                    type="number"
+                    min={3}
+                    value={settings.refreshIntervalSec}
+                    onChange={(e) => updateSettings({ refreshIntervalSec: Number(e.target.value) || 5 })}
                     className="w-16 border-white/10 bg-black/30 text-right font-mono text-sm"
                   />
                   <span className="font-mono text-xs text-muted-foreground">sec</span>
                 </div>
               </Row>
               <Row label="Reduced motion" description="Disable staggered panel animations.">
-                <Switch />
+                <Switch checked={settings.reducedMotion} onCheckedChange={(v) => updateSettings({ reducedMotion: v })} />
               </Row>
             </div>
           </HudPanel>
@@ -94,7 +93,8 @@ export function SettingsView() {
               Every module reads through a single <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">AgentAdapter</code>{" "}
               interface. It's on the mock engine right now so the dashboard works with zero setup — point each row at a
               real endpoint once its bridge harness exists, then flip <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">getAdapter()</code> in{" "}
-              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">lib/agents/adapter.ts</code>.
+              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">lib/agents/adapter.ts</code>. Check{" "}
+              <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">/diagnostics</code> for the real Redis connection status.
             </p>
             <div className="space-y-3">
               {NAV_AGENTS.map((agent) => (
@@ -120,19 +120,30 @@ export function SettingsView() {
 
         <TabsContent value="notifications" className="mt-4">
           <HudPanel>
-            <PanelHeader eyebrow="alerts" title="Notifications" />
+            <PanelHeader
+              eyebrow="alerts"
+              title="Notifications"
+              right={
+                <button
+                  onClick={() => toast.message("Test notification", { description: "This is what it'll look like." })}
+                  className="rounded-md border border-white/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground transition-colors hover:border-neon-cyan/50 hover:text-neon-cyan"
+                >
+                  Send test
+                </button>
+              }
+            />
             <div className="max-w-lg divide-y divide-white/[0.06]">
-              <Row label="Task failures" description="Alert when any agent reports a failed task.">
-                <Switch checked={notifyFailures} onCheckedChange={setNotifyFailures} />
+              <Row label="Task failures" description="Toast when any agent reports a failed task.">
+                <Switch checked={settings.notifyFailures} onCheckedChange={(v) => updateSettings({ notifyFailures: v })} />
               </Row>
-              <Row label="Degraded health" description="Alert when an agent's health drops to degraded/offline.">
-                <Switch checked={notifyDegraded} onCheckedChange={setNotifyDegraded} />
+              <Row label="Degraded health" description="Toast when an agent's health drops to degraded/offline.">
+                <Switch checked={settings.notifyDegraded} onCheckedChange={(v) => updateSettings({ notifyDegraded: v })} />
               </Row>
-              <Row label="Task completions" description="Alert on every completed task (noisy — off by default).">
-                <Switch checked={notifyCompletion} onCheckedChange={setNotifyCompletion} />
+              <Row label="Task completions" description="Toast on every completed task (noisy — off by default).">
+                <Switch checked={settings.notifyCompletion} onCheckedChange={(v) => updateSettings({ notifyCompletion: v })} />
               </Row>
-              <Row label="Sound alerts" description="Play a tone alongside visual alerts.">
-                <Switch checked={soundAlerts} onCheckedChange={setSoundAlerts} />
+              <Row label="Sound alerts" description="Play a short tone alongside visual toasts.">
+                <Switch checked={settings.soundAlerts} onCheckedChange={(v) => updateSettings({ soundAlerts: v })} />
               </Row>
             </div>
           </HudPanel>
@@ -163,6 +174,8 @@ export function SettingsView() {
               Full runbook lives in <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">DEPLOY.md</code> at the repo root —
               container build, Redis messaging bus, and the deploy script with a{" "}
               <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">--no-firewall</code> flag for the Tailscale/Cloudflare path.
+              An optional password gate (<code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">AGENTCTRL_PASSWORD</code>) is
+              also available — see <code className="rounded bg-black/40 px-1 py-0.5 font-mono text-neon-cyan">.env.example</code>.
             </p>
           </HudPanel>
         </TabsContent>
