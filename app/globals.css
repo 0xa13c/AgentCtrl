@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 3%;
+    --foreground: 190 40% 94%;
+
+    --card: 222 40% 6%;
+    --card-foreground: 190 30% 92%;
+
+    --popover: 222 40% 6%;
+    --popover-foreground: 190 30% 92%;
+
+    --primary: 187 100% 50%;
+    --primary-foreground: 222 47% 4%;
+
+    --secondary: 292 85% 62%;
+    --secondary-foreground: 222 47% 4%;
+
+    --muted: 220 25% 12%;
+    --muted-foreground: 210 15% 60%;
+
+    --accent: 292 85% 62%;
+    --accent-foreground: 222 47% 4%;
+
+    --destructive: 349 100% 63%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 200 40% 20%;
+    --input: 200 30% 16%;
+    --ring: 187 100% 50%;
+
+    --chart-1: 187 100% 50%;
+    --chart-2: 292 85% 62%;
+    --chart-3: 142 76% 55%;
+    --chart-4: 38 95% 58%;
+    --chart-5: 349 100% 63%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-color: hsl(var(--background));
+  }
+}
+
+@layer utilities {
+  .text-glow-cyan {
+    text-shadow: 0 0 12px rgba(0, 240, 255, 0.65);
+  }
+  .text-glow-magenta {
+    text-shadow: 0 0 12px rgba(255, 46, 230, 0.65);
+  }
+
+  /* Base elevated surface: soft ambient shadow + hairline top highlight,
+     like a physical panel catching light from above — not a flat rectangle. */
+  .hud-panel {
+    @apply relative rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.035] to-transparent bg-void-900/60 backdrop-blur-md;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
+      0 20px 40px -20px rgba(0, 0, 0, 0.65),
+      0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  }
+  .hud-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(0, 240, 255, 0.28), transparent 40%, transparent 60%, rgba(255, 46, 230, 0.2));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Interactive / "liftable" card variant used for the agent roster tiles */
+  .hud-card {
+    @apply relative cursor-pointer rounded-2xl border border-white/[0.08] bg-gradient-to-b from-white/[0.05] to-white/[0.01] bg-void-900/70 backdrop-blur-md transition-all duration-300 ease-out;
+    box-shadow:
+      0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 12px 28px -10px rgba(0, 0, 0, 0.7);
+    transform: translateY(0) scale(1);
+  }
+  .hud-card:hover {
+    transform: translateY(-4px) scale(1.012);
+  }
+  .hud-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(120% 60% at 50% -10%, rgba(255, 255, 255, 0.08), transparent 60%);
+    pointer-events: none;
+  }
+
+  .scrollbar-hud::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-hud::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-hud::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.25);
+    border-radius: 999px;
+  }
+}

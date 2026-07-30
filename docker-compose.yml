@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  agentctrl:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agentctrl-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      # - AGENTCTRL_API_URL=http://hermes-bridge:8080  # wire in when a real adapter ships
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentctrl-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentctrl-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - agentctrl-net
+
+  # Drop future agent harnesses in here as sibling services, e.g.:
+  # hermes-bridge:
+  #   build: ./harnesses/hermes-bridge
+  #   restart: unless-stopped
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - agentctrl-net
+
+networks:
+  agentctrl-net:
+    driver: bridge
+
+volumes:
+  redis-data:
