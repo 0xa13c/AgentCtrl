@@ -14,6 +14,11 @@ services:
       - REDIS_URL=redis://redis:6379
       # - AGENTCTRL_ADAPTER=redis          # flip to "redis" once real bridges (or the demo harnesses below) are publishing
       # - AGENTCTRL_PASSWORD=change-me     # enable the password gate (see .env.example)
+      # - AGENTCTRL_AGENT_TOKEN=change-me  # shared secret for agent-written journal entries
+      # - OBSIDIAN_VAULT_REPO=https://github.com/you/your-vault-repo.git
+      # - OBSIDIAN_VAULT_TOKEN=github_pat_xxx   # fine-grained PAT, Contents read/write, scoped to the vault repo only
+    volumes:
+      - vault-data:/app/vault
     depends_on:
       redis:
         condition: service_healthy
@@ -40,7 +45,8 @@ services:
   # default (profile "demo"). Start them alongside the dashboard with:
   #   docker compose --profile demo up -d
   # then set AGENTCTRL_ADAPTER=redis above and restart the agentctrl service
-  # to see the Overview/agent pages and /diagnostics reading real Redis data.
+  # to see the Overview/agent pages, /diagnostics, and Chat replies reading
+  # real Redis data.
   hermes-bridge:
     build: ./harnesses/example-agent-harness
     container_name: agentctrl-hermes-bridge
@@ -96,3 +102,4 @@ networks:
 
 volumes:
   redis-data:
+  vault-data:

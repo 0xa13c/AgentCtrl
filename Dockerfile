@@ -2,6 +2,8 @@
 FROM node:20-alpine AS base
 WORKDIR /app
 RUN corepack enable
+# git is needed at runtime by the Obsidian vault sync (lib/vault/sync.ts)
+RUN apk add --no-cache git
 
 # ---- Dependencies ----
 FROM base AS deps
@@ -24,6 +26,9 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Persistent, writable home for the Obsidian vault clone (see docker-compose.yml volume)
+RUN mkdir -p /app/vault && chown -R nextjs:nodejs /app/vault
 
 USER nextjs
 EXPOSE 3000

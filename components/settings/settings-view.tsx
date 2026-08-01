@@ -10,7 +10,8 @@ import { HudPanel, PanelHeader } from "@/components/hud/panel";
 import { AgentIcon } from "@/components/hud/agent-icon";
 import { NAV_AGENTS } from "@/lib/constants";
 import { useSettings } from "@/lib/settings-context";
-import { Radio, ShieldCheck, Bell, SlidersHorizontal, Info } from "lucide-react";
+import { VaultStatusPanel } from "@/components/settings/vault-status-panel";
+import { Radio, ShieldCheck, Bell, SlidersHorizontal, Info, BookMarked } from "lucide-react";
 
 function Row({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
@@ -47,6 +48,9 @@ export function SettingsView() {
           </TabsTrigger>
           <TabsTrigger value="notifications" className="gap-1.5">
             <Bell className="h-3.5 w-3.5" /> Notifications
+          </TabsTrigger>
+          <TabsTrigger value="vault" className="gap-1.5">
+            <BookMarked className="h-3.5 w-3.5" /> Obsidian Vault
           </TabsTrigger>
           <TabsTrigger value="access" className="gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5" /> Access & Deploy
@@ -108,8 +112,8 @@ export function SettingsView() {
                 <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-neon-violet">for production</p>
                 <p className="text-sm font-semibold text-foreground">Write a real bridge</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Copy the example harness, replace the simulated tick with real calls into your agent, keep the same
-                  Redis key shape — the dashboard needs zero changes.
+                  Copy the example harness, replace the simulated tick + chat reply with real calls into your agent, keep the same Redis key
+                  shape — the dashboard needs zero changes.
                 </p>
               </div>
             </div>
@@ -164,6 +168,20 @@ export function SettingsView() {
                 <Switch checked={settings.soundAlerts} onCheckedChange={(v) => updateSettings({ soundAlerts: v })} />
               </Row>
             </div>
+          </HudPanel>
+        </TabsContent>
+
+        <TabsContent value="vault" className="mt-4 space-y-4">
+          <VaultStatusPanel />
+          <HudPanel delay={0.05}>
+            <PanelHeader eyebrow="how it works" title="What gets synced" />
+            <p className="text-sm text-muted-foreground">
+              Every Project, Journal entry, and Chat thread is regenerated as Obsidian-ready markdown (with frontmatter and{" "}
+              <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">[[wikilinks]]</code> for assigned agents) into a{" "}
+              <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">vault/</code> folder, committed, and pushed to the repo you
+              set in <code className="rounded bg-black/40 px-1 font-mono text-neon-cyan">OBSIDIAN_VAULT_REPO</code>. Clone that repo (or point
+              Obsidian's Git plugin at it) on any machine to read/search everything with Obsidian.
+            </p>
           </HudPanel>
         </TabsContent>
 

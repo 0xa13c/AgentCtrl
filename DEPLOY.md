@@ -162,3 +162,33 @@ docker compose up -d --build
 That's the entire integration surface — the shared `AgentModuleView` component
 handles layout, charts, task queue, and logs for any agent that implements the
 `AgentAdapter` interface.
+
+## Obsidian vault sync
+
+Projects, Journal entries, and Chat threads can be mirrored as an
+Obsidian-ready markdown vault into a **separate** GitHub repo, so you can
+open/search/link everything from Obsidian on any machine.
+
+1. Create an empty repo for the vault (same process as AgentCtrl's own repo
+   — don't reuse this one).
+2. Add to `.env`:
+   ```bash
+   OBSIDIAN_VAULT_REPO=https://github.com/you/agentctrl-vault.git
+   OBSIDIAN_VAULT_TOKEN=github_pat_xxx   # fine-grained, Contents read/write, scoped to the vault repo only
+   ```
+3. `docker compose up -d --build` (or just restart the `agentctrl` service if
+   already running).
+4. Check **Settings → Obsidian Vault** in the dashboard — it'll show
+   "Not configured" until the env vars are picked up, then sync status +
+   a manual "Sync now" button once they are.
+
+Sync runs automatically every 10 minutes (skipped if nothing changed) via
+`instrumentation.ts`, which starts the scheduler when the Next.js server
+boots — no separate cron/process needed. The vault itself lives in the
+`vault-data` Docker volume so its local git history survives container
+rebuilds.
+
+To read it in Obsidian: clone `agentctrl-vault` anywhere Obsidian runs (or
+use the Obsidian Git community plugin to pull it directly into a vault) —
+`Projects/`, `Journal/<agent>/`, and `Chat/` folders, plus an
+auto-generated `README.md` index.
