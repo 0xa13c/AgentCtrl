@@ -4,7 +4,8 @@
  * This is a WORKING EXAMPLE of the pattern described in DEPLOY.md: talk to
  * your real agent however it already talks, then publish normalized JSON
  * into Redis in the shape AgentCtrl's live adapter (lib/agents/live.ts)
- * reads. Swap the `simulateTick()` function below for real calls into
+ * reads, AND poll the chat list to reply to messages sent from the
+ * dashboard's Chat page. Swap the simulated bits for real calls into
  * Hermes/Codex/OpenClaw and you have a production bridge.
  *
  * Config via env vars:
@@ -12,7 +13,8 @@
  *   AGENT_ID      - "hermes" | "codex" | "openclaw" (must match types/agents.ts)
  *   AGENT_NAME    - display name, e.g. "Hermes"
  *   AGENT_TAGLINE - short description shown under the name
- *   TICK_MS       - how often to publish an update (default 4000)
+ *   TICK_MS       - how often to publish a telemetry update (default 4000)
+ *   CHAT_POLL_MS  - how often to check for new chat messages (default 2500)
  */
 
 const Redis = require("ioredis");
@@ -22,6 +24,7 @@ const AGENT_ID = process.env.AGENT_ID || "hermes";
 const AGENT_NAME = process.env.AGENT_NAME || "Hermes";
 const AGENT_TAGLINE = process.env.AGENT_TAGLINE || "Messenger & orchestration agent";
 const TICK_MS = Number(process.env.TICK_MS || 4000);
+const CHAT_POLL_MS = Number(process.env.CHAT_POLL_MS || 2500);
 
 const redis = new Redis(REDIS_URL);
 
@@ -31,6 +34,7 @@ const KEY_LOGS = `agentctrl:agent:${AGENT_ID}:logs`;
 const KEY_THROUGHPUT = `agentctrl:agent:${AGENT_ID}:throughput`;
 const KEY_ERROR_HISTORY = `agentctrl:agent:${AGENT_ID}:errorHistory`;
 const KEY_FLEET_ACTIVITY = "agentctrl:activity";
+const KEY_CHAT = `agentctrl:chat:${AGENT_ID}:messages`;
 
 const TASK_TITLES = [
   "Sync knowledge base",
@@ -50,10 +54,18 @@ const LOG_MESSAGES = [
   "Webhook delivered",
 ];
 
+const CHAT_ACKS = [
+  (text) => `Got it — starting on: "${text}"`,
+  () => "Acknowledged, queuing that up now.",
+  () => "Understood. I'll log progress in the Journal as I go.",
+  () => "On it. I'll flag you here if I hit a blocker.",
+];
+
 const startedAt = Date.now();
 let tasks = seedTasks();
 let throughput = seedSeries(20, 100);
 let errorHistory = seedSeries(0, 3);
+let lastSeenChatLength = null; // set on first poll so we don't reply to history on boot
 
 function rand(min, max) {
   return min + Math.random() * (max - min);
@@ -133,6 +145,41 @@ async function tick() {
   console.log(`[${AGENT_ID}] published tick — health=${summary.health} active=${summary.activeTasks} queued=${summary.queuedTasks}`);
 }
 
+/**
+ * Polls the shared chat list for new "user" messages and replies with a
+ * canned acknowledgement after a short simulated "thinking" delay. A real
+ * bridge would replace craftReply()'s body with an actual call into the
+ * agent (or an LLM) and could take much longer to reply — that's fine,
+ * the dashboard just keeps polling GET /api/chat/<agentId>/messages.
+ */
+async function respondToChat() {
+  const raw = await redis.lrange(KEY_CHAT, 0, -1);
+
+  if (lastSeenChatLength === null) {
+    lastSeenChatLength = raw.length; // don't reply to pre-existing history on boot
+    return;
+  }
+  if (raw.length <= lastSeenChatLength) return;
+
+  const newMessages = raw.slice(lastSeenChatLength).map((r) => JSON.parse(r));
+  lastSeenChatLength = raw.length;
+
+  for (const msg of newMessages) {
+    if (msg.role !== "user") continue;
+    await new Promise((resolve) => setTimeout(resolve, 600 + Math.random() * 900));
+    const reply = {
+      id: `msg-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      agentId: AGENT_ID,
+      role: "agent",
+      content: pick(CHAT_ACKS)(msg.content),
+      createdAt: new Date().toISOString(),
+    };
+    await redis.rpush(KEY_CHAT, JSON.stringify(reply));
+    await redis.ltrim(KEY_CHAT, -500, -1);
+    console.log(`[${AGENT_ID}] replied to chat message ${msg.id}`);
+  }
+}
+
 redis.on("connect", () => console.log(`[${AGENT_ID}] connected to Redis at ${REDIS_URL}`));
 redis.on("error", (err) => console.error(`[${AGENT_ID}] redis error:`, err.message));
 
@@ -140,3 +187,7 @@ tick();
 setInterval(() => {
   tick().catch((err) => console.error(`[${AGENT_ID}] tick failed:`, err.message));
 }, TICK_MS);
+
+setInterval(() => {
+  respondToChat().catch((err) => console.error(`[${AGENT_ID}] chat poll failed:`, err.message));
+}, CHAT_POLL_MS);
