@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Activity, Settings, Radio } from "lucide-react";
+import { LayoutDashboard, Activity, Settings, Radio, FolderKanban, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_AGENTS } from "@/lib/constants";
 import { AgentIcon } from "@/components/hud/agent-icon";
@@ -32,6 +32,8 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 px-3 py-6">
         <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">deck</p>
         <SidebarLink href="/" icon={LayoutDashboard} label="Overview" active={pathname === "/"} />
+        <SidebarLink href="/projects" icon={FolderKanban} label="Projects" active={pathname === "/projects"} />
+        <SidebarLink href="/journal" icon={BookOpen} label="Journal" active={pathname === "/journal"} />
 
         <p className="px-3 pb-2 pt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">agents</p>
         {NAV_AGENTS.map((agent) => (

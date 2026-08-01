@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, computeSessionToken, isPasswordGateEnabled } from "@/lib/auth";
 
 export async function middleware(request: NextRequest) {
+  // Agent processes write journal entries machine-to-machine (no browser
+  // session cookie to present) — POST /api/journal authenticates itself via
+  // the X-Agent-Token header inside the route handler instead. GET stays
+  // behind the normal cookie gate below since that's for the human UI.
+  if (request.nextUrl.pathname === "/api/journal" && request.method === "POST") {
+    return NextResponse.next();
+  }
+
   // Gate is opt-in: unset AGENTCTRL_PASSWORD (the default) means fully open,
   // which is fine when the dashboard only lives on your Tailscale tailnet.
   if (!isPasswordGateEnabled()) {
@@ -29,6 +37,8 @@ export const config = {
      * - /api/login (the auth endpoint)
      * - /api/health (lets diagnostics/uptime checks work without a session)
      * - static assets and Next internals
+     * (/api/journal POST is handled inside the function above, not here,
+     * since it needs GET/POST to be treated differently on the same path.)
      */
     "/((?!login|api/login|api/health|_next/static|_next/image|favicon.ico).*)",
   ],
