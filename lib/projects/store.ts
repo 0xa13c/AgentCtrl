@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/redis";
+import { logActivity } from "@/lib/activity/store";
 import { CreateProjectInput, CreateTaskInput, Project, ProjectTask, TaskStatus } from "@/types/projects";
 
 /**
@@ -43,6 +44,9 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     description: input.description ?? "",
     goal: input.goal ?? "",
     status: "planning",
+    repoUrl: input.repoUrl,
+    environment: input.environment,
+    budgetCap: input.budgetCap,
     createdAt: now,
     updatedAt: now,
     tasks: [],
@@ -50,14 +54,21 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   const redis = getRedisClient();
   await redis.sadd(INDEX_KEY, project.id);
   await saveProject(project);
+  await logActivity({ source: "project", level: "info", projectId: project.id, message: `Created project "${project.name}"` });
   return project;
 }
 
-export async function updateProject(id: string, patch: Partial<Pick<Project, "name" | "description" | "goal" | "status">>): Promise<Project | null> {
+export async function updateProject(
+  id: string,
+  patch: Partial<Pick<Project, "name" | "description" | "goal" | "status" | "repoUrl" | "environment" | "budgetCap">>
+): Promise<Project | null> {
   const project = await getProject(id);
   if (!project) return null;
   const updated: Project = { ...project, ...patch, updatedAt: new Date().toISOString() };
   await saveProject(updated);
+  if (patch.status && patch.status !== project.status) {
+    await logActivity({ source: "project", level: "info", projectId: id, message: `"${project.name}" status changed to ${patch.status}` });
+  }
   return updated;
 }
 
@@ -77,7 +88,8 @@ export async function addTask(projectId: string, input: CreateTaskInput): Promis
     id: newId("task"),
     title: input.title,
     description: input.description ?? "",
-    status: "todo",
+    status: "inbox",
+    priority: input.priority ?? "medium",
     assignedAgentIds: input.assignedAgentIds ?? [],
     createdAt: now,
     updatedAt: now,
@@ -85,22 +97,32 @@ export async function addTask(projectId: string, input: CreateTaskInput): Promis
   project.tasks.push(task);
   project.updatedAt = now;
   await saveProject(project);
+  await logActivity({ source: "project", level: "info", projectId, message: `New task "${task.title}" added to "${project.name}"` });
   return project;
 }
 
 export async function updateTask(
   projectId: string,
   taskId: string,
-  patch: Partial<Pick<ProjectTask, "title" | "description" | "status" | "assignedAgentIds">>
+  patch: Partial<Pick<ProjectTask, "title" | "description" | "status" | "priority" | "assignedAgentIds">>
 ): Promise<Project | null> {
   const project = await getProject(projectId);
   if (!project) return null;
   const idx = project.tasks.findIndex((t) => t.id === taskId);
   if (idx === -1) return null;
   const now = new Date().toISOString();
+  const prevStatus = project.tasks[idx].status;
   project.tasks[idx] = { ...project.tasks[idx], ...patch, updatedAt: now };
   project.updatedAt = now;
   await saveProject(project);
+  if (patch.status && patch.status !== prevStatus) {
+    await logActivity({
+      source: "project",
+      level: patch.status === "blocked" ? "warn" : "info",
+      projectId,
+      message: `"${project.tasks[idx].title}" moved to ${patch.status.replace("_", " ")}`,
+    });
+  }
   return project;
 }
 

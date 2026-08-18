@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/redis";
+import { logActivity } from "@/lib/activity/store";
 import { AgentId } from "@/types/agents";
 import { JournalEntry, UpsertJournalInput } from "@/types/journal";
 
@@ -42,6 +43,12 @@ export async function upsertEntry(input: UpsertJournalInput): Promise<JournalEnt
   };
 
   await redis.hset(key, date, JSON.stringify(entry));
+  await logActivity({
+    source: "journal",
+    level: "info",
+    agentId: input.agentId,
+    message: `${input.agentId} ${existing ? "updated" : "logged"} today's journal entry`,
+  });
   return entry;
 }
 

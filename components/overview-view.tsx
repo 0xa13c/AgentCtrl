@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Bot, ListTodo, AlertTriangle, Gauge, ArrowRight } from "lucide-react";
 import { AgentSummary, FleetActivityEvent } from "@/types/agents";
+import { PlatformActivityEvent } from "@/types/activity";
 import { StatTile } from "@/components/hud/stat-tile";
 import { HudPanel, PanelHeader } from "@/components/hud/panel";
 import { StatusBadge } from "@/components/hud/status-badge";
@@ -28,15 +29,19 @@ const AGENT_BADGE_BG: Record<string, string> = {
 
 export function OverviewView() {
   const [agents, setAgents] = useState<AgentSummary[] | null>(null);
-  const [activity, setActivity] = useState<FleetActivityEvent[] | null>(null);
+  const [activity, setActivity] = useState<(FleetActivityEvent | PlatformActivityEvent)[] | null>(null);
 
   useEffect(() => {
-    fetch("/api/agents")
-      .then((res) => res.json())
-      .then(setAgents);
-    fetch("/api/activity?limit=24")
-      .then((res) => res.json())
-      .then(setActivity);
+    const adapter = fetch("/api/agents").then((res) => res.json());
+    adapter.then(setAgents);
+
+    Promise.all([
+      fetch("/api/activity?limit=15").then((res) => res.json() as Promise<FleetActivityEvent[]>),
+      fetch("/api/platform-activity?limit=15").then((res) => res.json() as Promise<PlatformActivityEvent[]>),
+    ]).then(([fleet, platform]) => {
+      const merged = [...fleet, ...platform].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 24);
+      setActivity(merged);
+    });
   }, []);
 
   const totalActive = agents?.reduce((sum, a) => sum + a.activeTasks, 0) ?? 0;
@@ -119,7 +124,7 @@ export function OverviewView() {
         </div>
 
         <HudPanel delay={0.2}>
-          <PanelHeader eyebrow="live" title="Fleet Activity" />
+          <PanelHeader eyebrow="live" title="Activity" />
           {activity ? <ActivityFeed events={activity} /> : <Skeleton className="h-96 rounded-lg bg-white/5" />}
         </HudPanel>
       </div>

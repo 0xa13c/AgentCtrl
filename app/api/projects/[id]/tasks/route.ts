@@ -9,7 +9,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!body?.title || typeof body.title !== "string") {
     return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
-  const project = await addTask(id, { title: body.title, description: body.description, assignedAgentIds: body.assignedAgentIds });
+  const project = await addTask(id, {
+    title: body.title,
+    description: body.description,
+    assignedAgentIds: body.assignedAgentIds,
+    priority: body.priority,
+  });
   if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
   return NextResponse.json(project, { status: 201 });
 }

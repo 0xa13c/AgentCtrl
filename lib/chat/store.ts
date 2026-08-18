@@ -1,4 +1,5 @@
 import { getRedisClient } from "@/lib/redis";
+import { logActivity } from "@/lib/activity/store";
 import { AgentId } from "@/types/agents";
 import { ChatMessage } from "@/types/chat";
 
@@ -33,5 +34,16 @@ export async function appendMessage(message: Omit<ChatMessage, "id" | "createdAt
   const key = messagesKey(message.agentId);
   await redis.rpush(key, JSON.stringify(full));
   await redis.ltrim(key, -MAX_MESSAGES, -1);
+
+  if (message.role === "user") {
+    await logActivity({
+      source: "chat",
+      level: "info",
+      agentId: message.agentId,
+      projectId: message.projectId,
+      message: `You messaged ${message.agentId}${message.taskId ? " (task created)" : ""}`,
+    });
+  }
+
   return full;
 }
