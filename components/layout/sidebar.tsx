@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Activity, Settings, Radio, FolderKanban, BookOpen, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Activity, Settings, Radio, FolderKanban, BookOpen, MessageSquare, LineChart, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_AGENTS } from "@/lib/constants";
 import { AgentIcon } from "@/components/hud/agent-icon";
@@ -16,6 +17,19 @@ const glowClasses: Record<string, string> = {
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  useEffect(() => {
+    function poll() {
+      fetch("/api/approvals?status=pending")
+        .then((res) => res.json())
+        .then((data) => setPendingApprovals(Array.isArray(data) ? data.length : 0))
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <aside className="hidden w-64 flex-col border-r border-white/[0.06] bg-void-950/60 backdrop-blur-md lg:flex">
@@ -33,8 +47,9 @@ export function Sidebar() {
         <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">deck</p>
         <SidebarLink href="/" icon={LayoutDashboard} label="Overview" active={pathname === "/"} />
         <SidebarLink href="/chat" icon={MessageSquare} label="Chat" active={pathname === "/chat"} />
-        <SidebarLink href="/projects" icon={FolderKanban} label="Projects" active={pathname === "/projects"} />
+        <SidebarLink href="/projects" icon={FolderKanban} label="Projects" active={pathname.startsWith("/projects")} />
         <SidebarLink href="/journal" icon={BookOpen} label="Journal" active={pathname === "/journal"} />
+        <SidebarLink href="/approvals" icon={ShieldCheck} label="Approvals" active={pathname === "/approvals"} badge={pendingApprovals || undefined} />
 
         <p className="px-3 pb-2 pt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">agents</p>
         {NAV_AGENTS.map((agent) => (
@@ -59,6 +74,7 @@ export function Sidebar() {
         ))}
 
         <p className="px-3 pb-2 pt-6 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">system</p>
+        <SidebarLink href="/observability" icon={LineChart} label="Observability" active={pathname === "/observability"} />
         <SidebarLink href="/diagnostics" icon={Activity} label="Diagnostics" active={pathname === "/diagnostics"} />
         <SidebarLink href="/settings" icon={Settings} label="Settings" active={pathname === "/settings"} />
       </nav>
@@ -78,11 +94,13 @@ function SidebarLink({
   icon: Icon,
   label,
   active,
+  badge,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   active: boolean;
+  badge?: number;
 }) {
   return (
     <Link href={href} className="block">
@@ -94,6 +112,11 @@ function SidebarLink({
       >
         <Icon className="h-4 w-4" />
         <span className="font-medium">{label}</span>
+        {badge ? (
+          <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-neon-amber/20 px-1.5 font-mono text-[10px] text-neon-amber">
+            {badge}
+          </span>
+        ) : null}
       </div>
     </Link>
   );

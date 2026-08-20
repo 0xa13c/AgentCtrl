@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/agents/adapter";
+import { logAuditEvent } from "@/lib/audit/store";
 import { AgentId } from "@/types/agents";
 
 export const dynamic = "force-dynamic";
@@ -21,5 +22,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const adapter = await getAdapter();
   const result = await adapter.sendCommand(id as AgentId, command);
+  await logAuditEvent({
+    action: "agent.command",
+    actor: "you",
+    target: `${id}: ${command}`,
+    result: result.ok ? "success" : "failure",
+  });
   return NextResponse.json(result);
 }

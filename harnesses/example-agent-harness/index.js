@@ -4,9 +4,10 @@
  * This is a WORKING EXAMPLE of the pattern described in DEPLOY.md: talk to
  * your real agent however it already talks, then publish normalized JSON
  * into Redis in the shape AgentCtrl's live adapter (lib/agents/live.ts)
- * reads, AND poll the chat list to reply to messages sent from the
- * dashboard's Chat page. Swap the simulated bits for real calls into
- * Hermes/Codex/OpenClaw and you have a production bridge.
+ * reads, poll the chat list to reply to messages sent from the dashboard's
+ * Chat page, and report simulated cost/token usage so Observability has
+ * real (if fake-data-sourced) numbers to chart. Swap the simulated bits for
+ * real calls into Hermes/Codex/OpenClaw and you have a production bridge.
  *
  * Config via env vars:
  *   REDIS_URL     - defaults to redis://localhost:6379
@@ -15,6 +16,7 @@
  *   AGENT_TAGLINE - short description shown under the name
  *   TICK_MS       - how often to publish a telemetry update (default 4000)
  *   CHAT_POLL_MS  - how often to check for new chat messages (default 2500)
+ *   USAGE_TICK_MS - how often to report simulated usage (default 30000)
  */
 
 const Redis = require("ioredis");
@@ -25,6 +27,7 @@ const AGENT_NAME = process.env.AGENT_NAME || "Hermes";
 const AGENT_TAGLINE = process.env.AGENT_TAGLINE || "Messenger & orchestration agent";
 const TICK_MS = Number(process.env.TICK_MS || 4000);
 const CHAT_POLL_MS = Number(process.env.CHAT_POLL_MS || 2500);
+const USAGE_TICK_MS = Number(process.env.USAGE_TICK_MS || 30000);
 
 const redis = new Redis(REDIS_URL);
 
@@ -35,6 +38,8 @@ const KEY_THROUGHPUT = `agentctrl:agent:${AGENT_ID}:throughput`;
 const KEY_ERROR_HISTORY = `agentctrl:agent:${AGENT_ID}:errorHistory`;
 const KEY_FLEET_ACTIVITY = "agentctrl:activity";
 const KEY_CHAT = `agentctrl:chat:${AGENT_ID}:messages`;
+const KEY_USAGE_DAILY = `agentctrl:usage:${AGENT_ID}:daily`;
+const KEY_USAGE_EVENTS = "agentctrl:usage:events";
 
 const TASK_TITLES = [
   "Sync knowledge base",
@@ -72,6 +77,9 @@ function rand(min, max) {
 }
 function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
+}
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function seedTasks() {
@@ -180,6 +188,34 @@ async function respondToChat() {
   }
 }
 
+/**
+ * Reports simulated cost/token usage directly into the same Redis keys
+ * lib/usage/store.ts writes to — mirrors the recordUsage() logic there.
+ * A real bridge should call this (or the equivalent POST /api/usage) with
+ * ACTUAL numbers from the provider's response, never estimates.
+ */
+async function reportUsage() {
+  const date = today();
+  const tokensIn = Math.floor(rand(200, 2000));
+  const tokensOut = Math.floor(rand(100, 900));
+  const costUsd = Number((tokensIn * 0.000003 + tokensOut * 0.000015).toFixed(6));
+
+  const existingRaw = await redis.hget(KEY_USAGE_DAILY, date);
+  const existing = existingRaw ? JSON.parse(existingRaw) : { date, tokensIn: 0, tokensOut: 0, costUsd: 0 };
+  const updated = {
+    date,
+    tokensIn: existing.tokensIn + tokensIn,
+    tokensOut: existing.tokensOut + tokensOut,
+    costUsd: Number((existing.costUsd + costUsd).toFixed(4)),
+  };
+  await redis.hset(KEY_USAGE_DAILY, date, JSON.stringify(updated));
+
+  const event = { id: `usage-${AGENT_ID}-${Date.now()}`, agentId: AGENT_ID, tokensIn, tokensOut, costUsd, timestamp: new Date().toISOString() };
+  await redis.lpush(KEY_USAGE_EVENTS, JSON.stringify(event));
+  await redis.ltrim(KEY_USAGE_EVENTS, 0, 499);
+  console.log(`[${AGENT_ID}] reported usage — $${costUsd.toFixed(4)}, ${tokensIn + tokensOut} tokens`);
+}
+
 redis.on("connect", () => console.log(`[${AGENT_ID}] connected to Redis at ${REDIS_URL}`));
 redis.on("error", (err) => console.error(`[${AGENT_ID}] redis error:`, err.message));
 
@@ -191,3 +227,7 @@ setInterval(() => {
 setInterval(() => {
   respondToChat().catch((err) => console.error(`[${AGENT_ID}] chat poll failed:`, err.message));
 }, CHAT_POLL_MS);
+
+setInterval(() => {
+  reportUsage().catch((err) => console.error(`[${AGENT_ID}] usage report failed:`, err.message));
+}, USAGE_TICK_MS);

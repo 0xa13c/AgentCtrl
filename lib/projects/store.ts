@@ -1,5 +1,6 @@
 import { getRedisClient } from "@/lib/redis";
 import { logActivity } from "@/lib/activity/store";
+import { logAuditEvent } from "@/lib/audit/store";
 import { CreateProjectInput, CreateTaskInput, Project, ProjectTask, TaskStatus } from "@/types/projects";
 
 /**
@@ -55,6 +56,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   await redis.sadd(INDEX_KEY, project.id);
   await saveProject(project);
   await logActivity({ source: "project", level: "info", projectId: project.id, message: `Created project "${project.name}"` });
+  await logAuditEvent({ action: "project.created", actor: "you", target: project.name, result: "success" });
   return project;
 }
 
@@ -74,9 +76,13 @@ export async function updateProject(
 
 export async function deleteProject(id: string): Promise<boolean> {
   const redis = getRedisClient();
+  const project = await getProject(id);
   const existed = await redis.exists(projectKey(id));
   await redis.srem(INDEX_KEY, id);
   await redis.del(projectKey(id));
+  if (existed === 1) {
+    await logAuditEvent({ action: "project.deleted", actor: "you", target: project?.name ?? id, result: "success" });
+  }
   return existed === 1;
 }
 
@@ -121,6 +127,12 @@ export async function updateTask(
       level: patch.status === "blocked" ? "warn" : "info",
       projectId,
       message: `"${project.tasks[idx].title}" moved to ${patch.status.replace("_", " ")}`,
+    });
+    await logAuditEvent({
+      action: "task.status_changed",
+      actor: "you",
+      target: `${project.tasks[idx].title}: ${prevStatus} -> ${patch.status}`,
+      result: "success",
     });
   }
   return project;

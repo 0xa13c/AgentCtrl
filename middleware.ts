@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, computeSessionToken, isPasswordGateEnabled } from "@/lib/auth";
 
+// Paths where agent processes write machine-to-machine (no browser session
+// cookie to present) — these authenticate via the X-Agent-Token header
+// inside their own route handler instead. GET/PATCH on the same paths stay
+// behind the normal cookie gate below since those are for the human UI.
+const AGENT_WRITE_PATHS = new Set(["/api/journal", "/api/usage", "/api/approvals"]);
+
 export async function middleware(request: NextRequest) {
-  // Agent processes write journal entries machine-to-machine (no browser
-  // session cookie to present) — POST /api/journal authenticates itself via
-  // the X-Agent-Token header inside the route handler instead. GET stays
-  // behind the normal cookie gate below since that's for the human UI.
-  if (request.nextUrl.pathname === "/api/journal" && request.method === "POST") {
+  if (AGENT_WRITE_PATHS.has(request.nextUrl.pathname) && request.method === "POST") {
     return NextResponse.next();
   }
 
@@ -37,8 +39,8 @@ export const config = {
      * - /api/login (the auth endpoint)
      * - /api/health (lets diagnostics/uptime checks work without a session)
      * - static assets and Next internals
-     * (/api/journal POST is handled inside the function above, not here,
-     * since it needs GET/POST to be treated differently on the same path.)
+     * (POSTs to AGENT_WRITE_PATHS are handled inside the function above,
+     * not here, since GET/PATCH on those same paths must stay gated.)
      */
     "/((?!login|api/login|api/health|_next/static|_next/image|favicon.ico).*)",
   ],

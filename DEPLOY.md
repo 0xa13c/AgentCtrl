@@ -192,3 +192,20 @@ To read it in Obsidian: clone `agentctrl-vault` anywhere Obsidian runs (or
 use the Obsidian Git community plugin to pull it directly into a vault) —
 `Projects/`, `Journal/<agent>/`, and `Chat/` folders, plus an
 auto-generated `README.md` index.
+
+## Observability and Approvals (Phase B)
+
+- **Observability** (`/observability`) shows real cost/token usage — never
+  synthesized. A bridge reports actual numbers via `POST /api/usage`
+  (`X-Agent-Token` gated, same pattern as `/api/journal`), or the demo
+  harness reports simulated ones for testing. Until something reports, the
+  page shows an honest empty state with the exact curl command to wire it
+  up. The Audit Log on the same page is a separate, longer-retained trail
+  of security-relevant actions (agent commands, project changes, task
+  status changes, logins, vault syncs, approvals).
+- **Approvals** (`/approvals`) is the human-in-the-loop queue. Dragging a
+  Kanban card to "Awaiting Approval" automatically opens a request here;
+  approving moves the task to Done, rejecting sends it back to Blocked.
+  Agents can also open approval requests directly via
+  `POST /api/approvals` (same `X-Agent-Token` gate) for anything outside
+  the Kanban flow.

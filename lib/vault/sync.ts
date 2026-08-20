@@ -6,6 +6,7 @@ import path from "path";
 import { listProjects } from "@/lib/projects/store";
 import { listEntries } from "@/lib/journal/store";
 import { listMessages } from "@/lib/chat/store";
+import { logAuditEvent } from "@/lib/audit/store";
 import { AgentId } from "@/types/agents";
 import { journalFilename, projectFilename, renderChatMarkdown, renderJournalMarkdown, renderProjectMarkdown, vaultReadme } from "./render";
 
@@ -145,6 +146,7 @@ export async function syncVault(): Promise<VaultSyncResult> {
 
     const result = { ok: true, synced: true, message: "Synced and pushed successfully.", timestamp };
     state.lastRun = result;
+    await logAuditEvent({ action: "vault.sync", actor: "system", result: "success", metadata: { message: result.message } });
     return result;
   } catch (err) {
     const result = {
@@ -154,6 +156,7 @@ export async function syncVault(): Promise<VaultSyncResult> {
       timestamp,
     };
     state.lastRun = result;
+    await logAuditEvent({ action: "vault.sync", actor: "system", result: "failure", metadata: { message: result.message } });
     return result;
   } finally {
     state.running = false;
