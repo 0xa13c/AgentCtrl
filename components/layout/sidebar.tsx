@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { LayoutDashboard, Activity, Settings, Radio, FolderKanban, BookOpen, MessageSquare, LineChart, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Activity, Settings, Radio, FolderKanban, BookOpen, MessageSquare, LineChart, ShieldCheck, SquareTerminal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_AGENTS } from "@/lib/constants";
 import { AgentIcon } from "@/components/hud/agent-icon";
@@ -47,6 +47,7 @@ export function Sidebar() {
         <p className="px-3 pb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">deck</p>
         <SidebarLink href="/" icon={LayoutDashboard} label="Overview" active={pathname === "/"} />
         <SidebarLink href="/chat" icon={MessageSquare} label="Chat" active={pathname === "/chat"} />
+        <SidebarLink href="/terminal" icon={SquareTerminal} label="Terminal" active={pathname === "/terminal"} />
         <SidebarLink href="/projects" icon={FolderKanban} label="Projects" active={pathname.startsWith("/projects")} />
         <SidebarLink href="/journal" icon={BookOpen} label="Journal" active={pathname === "/journal"} />
         <SidebarLink href="/approvals" icon={ShieldCheck} label="Approvals" active={pathname === "/approvals"} badge={pendingApprovals || undefined} />

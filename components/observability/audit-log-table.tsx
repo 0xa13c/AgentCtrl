@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 
 const ACTION_LABEL: Record<string, string> = {
   "agent.command": "Agent Command",
+  "terminal.input": "Terminal Input",
   "project.created": "Project Created",
   "project.deleted": "Project Deleted",
   "task.status_changed": "Task Status Changed",

@@ -1,5 +1,6 @@
 export type AuditAction =
   | "agent.command"
+  | "terminal.input"
   | "project.created"
   | "project.deleted"
   | "task.status_changed"

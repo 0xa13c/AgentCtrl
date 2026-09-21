@@ -209,3 +209,27 @@ auto-generated `README.md` index.
   Agents can also open approval requests directly via
   `POST /api/approvals` (same `X-Agent-Token` gate) for anything outside
   the Kanban flow.
+
+## Live Terminals (Phase C)
+
+- `/terminal` shows one agent's real terminal output at a time (a selector,
+  not a multi-pane grid — chosen deliberately for the single-operator use
+  case; a grid view is a straightforward follow-up if you ever want to
+  watch several agents at once).
+- **Read-only by default** ("OBSERVING" banner) — the pane just displays
+  whatever a bridge harness publishes into
+  `agentctrl:terminal:<agentId>:output`. Nothing typed there reaches the
+  agent unless you explicitly flip "Interactive" on, which requires
+  clicking through a confirmation dialog first.
+- In interactive mode, commands you send go to
+  `agentctrl:terminal:<agentId>:input` for a bridge to actually execute —
+  and every single command is written to the Audit Log
+  (`/observability`), since this is the most privileged action surface in
+  the app.
+- The demo harness fakes a plausible CLI session (colored build/test/log
+  output) and echoes back anything sent via interactive mode, so the
+  whole loop is testable without a real agent wired up yet.
+- Uses `@xterm/xterm` for real terminal rendering (ANSI colors, scrollback,
+  proper monospace layout) fed by polling — same pattern as everything
+  else in this app, not a WebSocket server. Good enough for realistic CLI
+  output cadence; revisit if you need sub-100ms latency later.

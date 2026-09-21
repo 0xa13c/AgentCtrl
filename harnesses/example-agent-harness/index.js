@@ -17,6 +17,7 @@
  *   TICK_MS       - how often to publish a telemetry update (default 4000)
  *   CHAT_POLL_MS  - how often to check for new chat messages (default 2500)
  *   USAGE_TICK_MS - how often to report simulated usage (default 30000)
+ *   TERMINAL_TICK_MS - how often to emit a fake terminal line (default 3000)
  */
 
 const Redis = require("ioredis");
@@ -28,6 +29,7 @@ const AGENT_TAGLINE = process.env.AGENT_TAGLINE || "Messenger & orchestration ag
 const TICK_MS = Number(process.env.TICK_MS || 4000);
 const CHAT_POLL_MS = Number(process.env.CHAT_POLL_MS || 2500);
 const USAGE_TICK_MS = Number(process.env.USAGE_TICK_MS || 30000);
+const TERMINAL_TICK_MS = Number(process.env.TERMINAL_TICK_MS || 3000);
 
 const redis = new Redis(REDIS_URL);
 
@@ -40,6 +42,8 @@ const KEY_FLEET_ACTIVITY = "agentctrl:activity";
 const KEY_CHAT = `agentctrl:chat:${AGENT_ID}:messages`;
 const KEY_USAGE_DAILY = `agentctrl:usage:${AGENT_ID}:daily`;
 const KEY_USAGE_EVENTS = "agentctrl:usage:events";
+const KEY_TERMINAL_OUTPUT = `agentctrl:terminal:${AGENT_ID}:output`;
+const KEY_TERMINAL_INPUT = `agentctrl:terminal:${AGENT_ID}:input`;
 
 const TASK_TITLES = [
   "Sync knowledge base",
@@ -231,3 +235,63 @@ setInterval(() => {
 setInterval(() => {
   reportUsage().catch((err) => console.error(`[${AGENT_ID}] usage report failed:`, err.message));
 }, USAGE_TICK_MS);
+
+/**
+ * Fake CLI session for the Live Terminals page. A real bridge replaces this
+ * with an actual PTY wrapper streaming the agent's real stdout/stderr —
+ * everything downstream (the Redis key, the read API, xterm.js rendering)
+ * stays identical.
+ */
+const TERMINAL_LINES = [
+  () => `\x1b[90m$ \x1b[0mnpm run build`,
+  () => `\x1b[32m✓\x1b[0m Compiled ${Math.floor(rand(30, 90))} modules in ${(rand(0.4, 2.4)).toFixed(1)}s`,
+  () => `\x1b[90m$ \x1b[0mgit status --short`,
+  () => ` M src/${pick(["index.ts", "handler.ts", "utils.ts", "config.json"])}`,
+  () => `\x1b[36minfo\x1b[0m  Running task: ${pick(TASK_TITLES)}`,
+  () => `\x1b[33mwarn\x1b[0m  Retry ${Math.floor(rand(1, 3))}/3 for flaky network call`,
+  () => `\x1b[32mPASS\x1b[0m  tests/${pick(["auth", "api", "db", "ui"])}.spec.ts (${Math.floor(rand(3, 40))} tests)`,
+  () => `\x1b[90m$ \x1b[0mcurl -s https://api.internal/health`,
+  () => `{"status":"ok","latencyMs":${Math.floor(rand(20, 180))}}`,
+];
+
+async function emitTerminalLine() {
+  const line = pick(TERMINAL_LINES)();
+  await redis.rpush(KEY_TERMINAL_OUTPUT, line + "\r\n");
+  await redis.ltrim(KEY_TERMINAL_OUTPUT, -5000, -1);
+}
+
+let terminalInputCursor = null;
+
+/**
+ * Polls for commands a human sent from the Terminal page's interactive
+ * mode and "executes" them by echoing a fake result back into the output
+ * stream. A real bridge would actually write these into the agent's PTY
+ * stdin and let its real stdout produce the response.
+ */
+async function processTerminalInput() {
+  const raw = await redis.lrange(KEY_TERMINAL_INPUT, 0, -1);
+  if (terminalInputCursor === null) {
+    terminalInputCursor = raw.length;
+    return;
+  }
+  if (raw.length <= terminalInputCursor) return;
+
+  const newCommands = raw.slice(terminalInputCursor).map((r) => JSON.parse(r));
+  terminalInputCursor = raw.length;
+
+  for (const { command } of newCommands) {
+    await redis.rpush(KEY_TERMINAL_OUTPUT, `\x1b[95m$ ${command}\x1b[0m\r\n`);
+    await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 600));
+    await redis.rpush(KEY_TERMINAL_OUTPUT, `\x1b[90m(simulated) command received and acknowledged\x1b[0m\r\n`);
+    await redis.ltrim(KEY_TERMINAL_OUTPUT, -5000, -1);
+    console.log(`[${AGENT_ID}] processed terminal input: ${command}`);
+  }
+}
+
+setInterval(() => {
+  emitTerminalLine().catch((err) => console.error(`[${AGENT_ID}] terminal emit failed:`, err.message));
+}, TERMINAL_TICK_MS);
+
+setInterval(() => {
+  processTerminalInput().catch((err) => console.error(`[${AGENT_ID}] terminal input poll failed:`, err.message));
+}, CHAT_POLL_MS);
