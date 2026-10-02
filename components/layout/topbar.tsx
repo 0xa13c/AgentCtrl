@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
+import { useSidebarState } from "@/lib/sidebar-context";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 export function Topbar() {
   const [time, setTime] = useState<Date | null>(null);
+  const { toggle } = useSidebarState();
 
   useEffect(() => {
     setTime(new Date());
@@ -13,18 +16,21 @@ export function Topbar() {
   }, []);
 
   return (
-    <header className="flex items-center justify-between border-b border-neon-cyan/10 bg-void-950/40 px-6 py-4 backdrop-blur-md lg:px-10">
+    <header className="flex items-center justify-between border-b border-neon-cyan/10 bg-void-950/40 px-4 py-4 backdrop-blur-md min-[800px]:px-10">
       <div className="flex items-center gap-3">
-        <button className="rounded-md border border-neon-cyan/20 p-2 text-muted-foreground lg:hidden">
+        <button
+          onClick={toggle}
+          className="rounded-md border border-neon-cyan/20 p-2 text-muted-foreground transition-colors hover:border-neon-cyan/50 hover:text-neon-cyan min-[600px]:hidden"
+        >
           <Menu className="h-4 w-4" />
         </button>
         <div>
-          <h1 className="font-display text-lg font-bold tracking-wide text-foreground">MISSION CONTROL</h1>
-          <p className="font-mono text-[11px] text-muted-foreground">Autonomous agent command deck</p>
+          <h1 className="font-display text-base font-bold tracking-wide text-foreground min-[600px]:text-lg">MISSION CONTROL</h1>
+          <p className="hidden font-mono text-[11px] text-muted-foreground min-[600px]:block">Autonomous agent command deck</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 min-[600px]:gap-6">
         <div className="hidden font-mono text-xs text-muted-foreground sm:block">
           {time ? (
             <>
@@ -35,10 +41,7 @@ export function Topbar() {
             <span className="opacity-40">--:--:--</span>
           )}
         </div>
-        <button className="relative rounded-md border border-neon-cyan/20 p-2 text-muted-foreground transition-colors hover:border-neon-cyan/50 hover:text-neon-cyan">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-neon-magenta shadow-glow-magenta" />
-        </button>
+        <NotificationBell />
         <div className="h-8 w-8 rounded-full border border-neon-cyan/30 bg-gradient-to-br from-neon-cyan/20 to-neon-magenta/20" />
       </div>
     </header>

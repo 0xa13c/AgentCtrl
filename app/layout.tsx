@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { GridBackdrop } from "@/components/layout/grid-backdrop";
 import { SettingsProvider } from "@/lib/settings-context";
+import { SidebarProvider } from "@/lib/sidebar-context";
 import { NotificationListener } from "@/components/notifications/notification-listener";
 
 const display = Orbitron({
@@ -39,15 +40,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className="dark">
       <body className={`${display.variable} ${mono.variable} ${body.variable} min-h-screen`}>
         <SettingsProvider>
-          <GridBackdrop />
-          <div className="relative z-10 flex min-h-screen">
-            <Sidebar />
-            <div className="flex min-h-screen flex-1 flex-col">
-              <Topbar />
-              <main className="flex-1 overflow-y-auto px-6 pb-10 pt-6 lg:px-10">{children}</main>
+          <SidebarProvider>
+            <GridBackdrop />
+            <div className="relative z-10 flex min-h-screen">
+              <Sidebar />
+              <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+                <Topbar />
+                <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 pb-10 pt-6 min-[600px]:px-6 min-[800px]:px-10">{children}</main>
+              </div>
             </div>
-          </div>
-          <NotificationListener />
+            <NotificationListener />
+          </SidebarProvider>
           <Toaster
             theme="dark"
             position="bottom-right"
