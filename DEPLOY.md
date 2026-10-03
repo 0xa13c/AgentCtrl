@@ -233,3 +233,66 @@ auto-generated `README.md` index.
   proper monospace layout) fed by polling — same pattern as everything
   else in this app, not a WebSocket server. Good enough for realistic CLI
   output cadence; revisit if you need sub-100ms latency later.
+
+## Wiring a real agent: Hermes (first one)
+
+`harnesses/hermes-bridge` talks to an actual running Hermes Agent via its
+[OpenAI-compatible API server](https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server)
+and writes real data into the same Redis keys the dashboard reads — same
+pattern as the demo harnesses, just with a live source instead of synthetic
+data. See `harnesses/hermes-bridge/README.md` for exactly what it does (and
+doesn't) handle yet.
+
+### Setup
+
+1. **On Hermes**, enable its API server (`~/.hermes/.env`):
+   ```bash
+   API_SERVER_ENABLED=true
+   API_SERVER_KEY=some-strong-key
+   ```
+   then start it (`hermes gateway`, or however you run Hermes in Docker).
+   Confirm it's reachable: `curl http://<hermes-host>:8642/health` → `{"status":"ok"}`.
+
+2. **In `docker-compose.yml`**, uncomment and fill in the `hermes-bridge`
+   service's environment:
+   ```yaml
+   hermes-bridge:
+     environment:
+       - REDIS_URL=redis://redis:6379
+       - HERMES_API_URL=http://hermes:8642   # or wherever Hermes is actually reachable
+       - HERMES_API_KEY=some-strong-key       # must match Hermes's API_SERVER_KEY
+   ```
+   If Hermes joins this same `docker-compose.yml` (simplest — add it as its
+   own service on `agentctrl-net` and reference it as `http://hermes:8642`).
+   If it runs as a separate deployment on the same VPS, point `HERMES_API_URL`
+   at the host instead (e.g. the Docker bridge gateway IP, or publish
+   Hermes's port and use the host's address).
+
+3. **On `agentctrl`**, set `AGENTCTRL_ADAPTER=redis` (if not already) and
+   restart:
+   ```bash
+   docker compose up -d --build hermes-bridge agentctrl
+   ```
+   Codex and OpenClaw keep showing mock data until their own bridges exist —
+   `lib/agents/live.ts` falls back to mock per-agent, so flipping this on
+   for Hermes doesn't affect the other two.
+
+4. Check the `hermes-bridge` container logs:
+   ```bash
+   docker compose logs -f hermes-bridge
+   ```
+   You should see `health=online` and, after your first real chat message
+   from `/chat`, `refreshed pricing table (N model entries)`. If `N` is 0,
+   the `/api/model/options` pricing field names need a small adjustment —
+   see the README for how.
+
+5. Talk to it from `/chat`, watch its real tool calls stream into
+   `/terminal`, and check `/observability` for real token/cost numbers.
+
+### Adding Codex or OpenClaw next
+
+Copy `harnesses/hermes-bridge` as a starting point once you know how that
+agent actually talks (CLI, its own API, log files, etc.) — the Redis
+contract (`agentctrl:agent:<id>:*`, `agentctrl:chat:<id>:messages`,
+`agentctrl:terminal:<id>:*`, `agentctrl:usage:*`) is identical for every
+agent; only the part that talks to the agent itself changes.

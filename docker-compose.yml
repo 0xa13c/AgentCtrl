@@ -40,16 +40,45 @@ services:
     networks:
       - agentctrl-net
 
+  # --- Real bridges -----------------------------------------------------------
+  # hermes-bridge talks to an ACTUAL running Hermes Agent via its
+  # OpenAI-compatible API server (harnesses/hermes-bridge/README.md). Present
+  # by default but self-idles (logs a reminder, does nothing else) until you
+  # set HERMES_API_URL + HERMES_API_KEY below — safe to leave as-is until
+  # you're ready to wire Hermes in.
+  #
+  # If Hermes runs as its own separate deployment rather than joining this
+  # compose file, point HERMES_API_URL at wherever its port 8642 is actually
+  # reachable from this VPS (e.g. http://host.docker.internal:8642 or the
+  # host's address) instead of a service name.
+  hermes-bridge:
+    build: ./harnesses/hermes-bridge
+    container_name: agentctrl-hermes-bridge
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      # - HERMES_API_URL=http://hermes:8642
+      # - HERMES_API_KEY=change-me
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - agentctrl-net
+  # ---------------------------------------------------------------------------
+
   # --- Demo bridge harnesses -------------------------------------------------
-  # Reference implementations of harnesses/example-agent-harness. Off by
-  # default (profile "demo"). Start them alongside the dashboard with:
+  # Reference implementations of harnesses/example-agent-harness, entirely
+  # synthetic — useful for testing the dashboard with zero real agents wired
+  # up. Off by default (profile "demo"). Start them alongside the dashboard
+  # with:
   #   docker compose --profile demo up -d
   # then set AGENTCTRL_ADAPTER=redis above and restart the agentctrl service
   # to see the Overview/agent pages, /diagnostics, and Chat replies reading
-  # real Redis data.
-  hermes-bridge:
+  # real Redis data. Once hermes-bridge (above) is actually configured, drop
+  # hermes-demo-bridge so the two don't both write to agentctrl:agent:hermes:*.
+  hermes-demo-bridge:
     build: ./harnesses/example-agent-harness
-    container_name: agentctrl-hermes-bridge
+    container_name: agentctrl-hermes-demo-bridge
     restart: unless-stopped
     profiles: ["demo"]
     environment:
@@ -63,9 +92,9 @@ services:
     networks:
       - agentctrl-net
 
-  codex-bridge:
+  codex-demo-bridge:
     build: ./harnesses/example-agent-harness
-    container_name: agentctrl-codex-bridge
+    container_name: agentctrl-codex-demo-bridge
     restart: unless-stopped
     profiles: ["demo"]
     environment:
@@ -79,9 +108,9 @@ services:
     networks:
       - agentctrl-net
 
-  openclaw-bridge:
+  openclaw-demo-bridge:
     build: ./harnesses/example-agent-harness
-    container_name: agentctrl-openclaw-bridge
+    container_name: agentctrl-openclaw-demo-bridge
     restart: unless-stopped
     profiles: ["demo"]
     environment:
